@@ -1,11 +1,11 @@
-const User = require('../models/user.model');
-const authUtil = require('../util/authentication');
+const User = require("../models/user.model");
+const authUtil = require("../util/authentication");
 
 function getSignup(req, res) {
-  res.render('customer/auth/signup');
+  res.render("customer/auth/signup");
 }
 
-async function signup(req, res) {
+async function signup(req, res, next) {
   const user = new User(
     req.body.email,
     req.body.password,
@@ -15,21 +15,32 @@ async function signup(req, res) {
     req.body.city
   );
 
-  await user.signup();
+  try {
+    await user.signup();
+  } catch (e) {
+    next(e);
+    return;
+  }
 
-  res.redirect('/login');
+  res.redirect("/login");
 }
 
 function getLogin(req, res) {
-  res.render('customer/auth/login');
+  res.render("customer/auth/login");
 }
 
-async function login(req, res) {
+async function login(req, res, next) {
   const user = new User(req.body.email, req.body.password);
-  const existingUser = await user.getUserWithSameEmail();
+  let existingUser;
+  try {
+    existingUser = await user.getUserWithSameEmail();
+  } catch (e) {
+    next(e);
+    return;
+  }
 
   if (!existingUser) {
-    res.redirect('/login');
+    res.redirect("/login");
     return;
   }
 
@@ -38,18 +49,24 @@ async function login(req, res) {
   );
 
   if (!passwordIsCorrect) {
-    res.redirect('/login');
+    res.redirect("/login");
     return;
   }
 
   authUtil.createUserSession(req, existingUser, function () {
-    res.redirect('/');
+    res.redirect("/");
   });
+}
+
+function logout(req, res) {
+  authUtil.destroyUserAuthSession(req);
+  res.redirect("/login");
 }
 
 module.exports = {
   getSignup: getSignup,
   getLogin: getLogin,
   signup: signup,
-  login: login
+  login: login,
+  logout: logout,
 };
